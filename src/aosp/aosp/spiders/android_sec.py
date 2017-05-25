@@ -1,25 +1,29 @@
 # -*- coding: utf-8 -*-
 import scrapy
+import urllib2
+from aosp.items import AospItem
 from scrapy.selector import Selector
 from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
-from aosp.items import AospItem
-import urllib2
 
 class AndroidSecSpider(CrawlSpider):
     name = 'android_sec'
     allowed_domains = ['source.android.com',
                         'android.googlesource.com']
     start_urls = ['https://source.android.com/security/']
+    debug = 0
+    rules = None
+    if debug == 1:
+        rules = (
+            Rule(LinkExtractor(allow=('security/bulletin/2017-05-\d\d', )), 
+                callback='parse_item'),
+        )
+    else:
+        rules = (
+            Rule(LinkExtractor(allow=('security/bulletin/20\d\d-\d\d-\d\d', )), 
+                callback='parse_item'),
+        )
 
-    rules = (
-        Rule(LinkExtractor(allow=('security/bulletin/20\d\d-\d\d-\d\d', )), 
-            callback='parse_item'),
-    )
-    # rules = (
-    #     Rule(LinkExtractor(allow=('security/bulletin/2017-05-\d\d', )), 
-    #         callback='parse_item'),
-    # )
 
     def get_ref(self,sel):
         refers = []
@@ -35,7 +39,7 @@ class AndroidSecSpider(CrawlSpider):
                 refer = row.xpath("@href").extract()[0]
                 refers.append(refer)
             refers = ";".join(refers)
-            print refers
+            self.logger.info('get_ref refers: %s'% refers)
             return refers
                 
                 
@@ -49,8 +53,9 @@ class AndroidSecSpider(CrawlSpider):
             self.logger.info('td length: %s', len(row.xpath('td')))
             self.logger.info('td: %s', row.extract())
             if len(row.xpath('td')) == 5:
-                # why cve_id is td[1], but td[0]?
+                # why cve_id is td[1], not td[0]?
                 item['cve_id'] = row.xpath('td[1]/text()').extract()[0]
+                # the field named references will conflict with sqlite3's statement
                 item['m_references']  = self.get_ref(row.xpath('td[2]'))
                 item['severity'] = row.xpath('td[3]/text()').extract()[0]
                 item['devices'] = row.xpath('td[4]/text()').extract()[0]
@@ -76,17 +81,20 @@ class AndroidSecSpider(CrawlSpider):
                     item['versions'] = row.xpath('td[4]/text()').extract()[0]
             else:
                 continue
-            print item['cve_id']
+            self.logger.info( 'ending of cve id: %s parse'%item['cve_id'])
             if not item['cve_id'].startswith("CVE"):
                 continue
             last_cve = item['cve_id']
             if item['m_references'] is not None \
                 and item['m_references'].startswith("https://android."):
-                urls = item['m_references'].split(",")
-                print "lalal"
+                urls = item['m_references'].split(";")
                 for url in urls:
+                    # get vul file path from diff link.
+                    # call the next page parser for diff link
                     request = scrapy.Request(url,callback=self.parse_diff)
+                    # the first item passed by request's meta attr
                     request.meta['item'] = item
+                    # not return but iter to parse 
                     yield request
             else:
                 yield item
