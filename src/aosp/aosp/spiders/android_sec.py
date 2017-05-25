@@ -4,6 +4,7 @@ from scrapy.selector import Selector
 from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
 from aosp.items import AospItem
+import urllib2
 
 class AndroidSecSpider(CrawlSpider):
     name = 'android_sec'
@@ -98,7 +99,8 @@ class AndroidSecSpider(CrawlSpider):
         for row in response.xpath('/html/body/div/div/ul/li/a/text()'):
             first_part = response.url.split("+")[0]
             full_url = first_part+row.extract()
-            all_path.append(full_url)
+            full_decoded_url = urllib2.unquote(full_url)
+            all_path.append(full_decoded_url)
         item["file_path"] = ";".join(all_path)
         yield item
 
