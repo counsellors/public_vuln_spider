@@ -10,17 +10,17 @@ class AndroidSecSpider(CrawlSpider):
     name = 'android_sec'
     allowed_domains = ['source.android.com',
                         'android.googlesource.com']
-    start_urls = ['https://source.android.com/security/']
+    start_urls = ['https://source.android.com/security/bulletin']
     debug = 0
     rules = None
     if debug == 1:
         rules = (
-            Rule(LinkExtractor(allow=('security/bulletin/2017-05-\d\d', )), 
+            Rule(LinkExtractor(allow=('security/bulletin/2017-05-\d\d$', )), 
                 callback='parse_item'),
         )
     else:
         rules = (
-            Rule(LinkExtractor(allow=('security/bulletin/20\d\d-\d\d-\d\d', )), 
+            Rule(LinkExtractor(allow=('security/bulletin/20\d\d-\d\d-\d\d$', )), 
                 callback='parse_item'),
         )
 
@@ -47,7 +47,11 @@ class AndroidSecSpider(CrawlSpider):
         self.logger.info('Hi, this is an item page! %s', response.url)
         sel = Selector(response)
         last_cve = ""
-        for row in sel.xpath('//*[@id="gc-wrapper"]/div[2]/article/article/div[1]/table/tr[not(child::th)]'):
+        found_flag = 0
+        for row in sel.xpath('//*[@id="gc-wrapper"]/div/devsite-content/article/article/div[2]/table/tr[not(child::th)]'):
+        # for row in sel.xpath('//*[@id="gc-wrapper"]/div[2]/article/article/div[1]/table/tr[not(child::th)]'):
+            found_flag = 1
+            self.logger.info("*********found_flag:1************")
             item = AospItem()
             item['bulletins_date'] = response.url.split("/")[-1] 
             self.logger.info('td length: %s', len(row.xpath('td')))
