@@ -54,3 +54,10 @@ class AospSpiderMiddleware(object):
 
     def spider_opened(self, spider):
         spider.logger.info('Spider opened: %s' % spider.name)
+
+class HttpProxyMiddleware(object):
+    # overwrite process request
+    
+    def process_request(self, request, spider):
+        # Set the location of the proxy
+        request.meta['proxy'] = "http://proxy_ip:port"
